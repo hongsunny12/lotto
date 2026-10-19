@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>로또 번호 생성기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3f5f8;
+    --surface: #ffffff;
+    --text: #1d2430;
+    --muted: #5f6b7a;
+    --line: #dde2ea;
+    --btn: #1d2430;
+    --btn-text: #ffffff;
+    --y: #f2b705; --b: #3b82d6; --r: #e0483e; --g: #8a929c; --gr: #2fa560;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161c; --surface: #1b2129; --text: #e8ecf1; --muted: #9aa6b4;
+      --line: #2c3540; --btn: #e8ecf1; --btn-text: #12161c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161c; --surface: #1b2129; --text: #e8ecf1; --muted: #9aa6b4;
+    --line: #2c3540; --btn: #e8ecf1; --btn-text: #12161c;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  main { max-width: 520px; margin: 0 auto; padding: 28px 18px 40px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; font-weight: 700; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
+  .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .count { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .count button {
+    border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 600;
+    width: 44px; height: 44px; cursor: pointer;
+  }
+  .count button[aria-pressed="true"] { background: var(--btn); color: var(--btn-text); }
+  .primary {
+    flex: 1; min-width: 140px; height: 48px; border: 0; border-radius: 12px;
+    background: var(--btn); color: var(--btn-text); font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer;
+  }
+  button:focus-visible { outline: 3px solid var(--b); outline-offset: 2px; }
+  ol { list-style: none; margin: 0; padding: 0; }
+  li.row {
+    display: flex; align-items: center; gap: 8px; padding: 14px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tag { width: 22px; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+  .balls { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+  .ball {
+    width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 700; font-size: 1.05rem; color: #fff;
+    box-shadow: inset -4px -5px 0 rgba(0,0,0,0.15), inset 3px 3px 0 rgba(255,255,255,0.25);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+  }
+  .ball.y { background: var(--y); } .ball.b { background: var(--b); } .ball.r { background: var(--r); }
+  .ball.g { background: var(--g); } .ball.gr { background: var(--gr); }
+  @media (max-width: 380px) { .ball { width: 36px; height: 36px; font-size: 0.95rem; } }
+  .pop .ball { animation: pop 0.35s ease-out both; }
+  @keyframes pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .pop .ball { animation: none; } }
+  .empty { color: var(--muted); padding: 28px 0; text-align: center; }
+  .copy {
+    margin-top: 18px; width: 100%; height: 44px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .note { margin-top: 26px; font-size: 0.85rem; color: var(--muted); }
+  .note p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>로또 6/45 번호 생성기</h1>
+  <p class="sub">많이 겹치는 패턴을 피해서 무작위로 뽑아요.</p>
+
+  <div class="controls">
+    <div class="count" role="group" aria-label="세트 수">
+      <button type="button" data-n="1" aria-pressed="false">1</button>
+      <button type="button" data-n="3" aria-pressed="false">3</button>
+      <button type="button" data-n="5" aria-pressed="true">5</button>
+    </div>
+    <button class="primary" id="gen" type="button">번호 뽑기</button>
+  </div>
+
+  <ol id="list"><li class="empty">‘번호 뽑기’를 누르면 여기에 나와요.</li></ol>
+  <button class="copy" id="copy" type="button" hidden>번호 복사</button>
+
+  <div class="note">
+    <p>적용 규칙: 32~45 번호 2개 이상, 3연속 번호 없음, 끝자리 3종류 이상.</p>
+    <p>모든 조합의 1등 확률은 같아요(8,145,060분의 1). 이 규칙은 당첨 시 상금을 나눌 가능성을 줄이기 위한 것입니다.</p>
+  </div>
+</main>
+
+<script>
+  let count = 5;
+  let current = [];
+
+  function randInt(max) {
+    const a = new Uint32Array(1);
+    const limit = Math.floor(0x100000000 / max) * max;
+    do { crypto.getRandomValues(a); } while (a[0] >= limit);
+    return a[0] % max;
+  }
+  function sample() {
+    const pool = Array.from({ length: 45 }, (_, i) => i + 1);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = randInt(i + 1);
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 6).sort((a, b) => a - b);
+  }
+  function isOk(s) {
+    if (s.filter(n => n >= 32).length < 2) return false;
+    for (let i = 0; i < s.length - 2; i++) {
+      if (s[i] + 1 === s[i + 1] && s[i + 1] + 1 === s[i + 2]) return false;
+    }
+    if (new Set(s.map(n => n % 10)).size <= 2) return false;
+    return true;
+  }
+  function colorOf(n) {
+    if (n <= 10) return "y"; if (n <= 20) return "b"; if (n <= 30) return "r";
+    if (n <= 40) return "g"; return "gr";
+  }
+  function generate() {
+    const out = [];
+    while (out.length < count) { const s = sample(); if (isOk(s)) out.push(s); }
+    return out;
+  }
+  function render() {
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+    const tags = "ABCDE";
+    current.forEach((set, i) => {
+      const li = document.createElement("li");
+      li.className = "row pop";
+      li.innerHTML = `<span class="tag">${tags[i]}</span><div class="balls">` +
+        set.map((n, k) => `<span class="ball ${colorOf(n)}" style="animation-delay:${k * 50}ms">${n}</span>`).join("") +
+        `</div>`;
+      list.appendChild(li);
+    });
+    document.getElementById("copy").hidden = current.length === 0;
+  }
+
+  document.querySelectorAll(".count button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      count = Number(btn.dataset.n);
+      document.querySelectorAll(".count button").forEach(b => b.setAttribute("aria-pressed", b === btn));
+    });
+  });
+  document.getElementById("gen").addEventListener("click", () => { current = generate(); render(); });
+  document.getElementById("copy").addEventListener("click", async (e) => {
+    const text = current.map((s, i) => "ABCDE"[i] + ": " + s.join(", ")).join("\n");
+    try { await navigator.clipboard.writeText(text); e.target.textContent = "복사됨"; }
+    catch { e.target.textContent = "복사 실패 – 길게 눌러 직접 복사하세요"; }
+    setTimeout(() => { e.target.textContent = "번호 복사"; }, 1600);
+  });
+</script>
+</body>
+</html>
