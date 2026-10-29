@@ -139,7 +139,58 @@
   }
   function generate() {
     const out = [];
-    while (out.length < count) { const s = sample(); if (isOk(s)) out.push(s); }
+    let fixedNumbers = [];
+    
+    // 1. 기준이 될 첫 번째 유효한 세트(Base Set) 생성
+    while (true) {
+      const s = sample();
+      if (isOk(s)) {
+        // 유효성을 통과한 첫 세트에서 2~3개의 번호를 무작위로 추출해 '고정수'로 만듭니다.
+        const fixCount = randInt(2) + 2; // 2개 또는 3개 고정
+        const shuffled = [...s];
+        
+        // 번호 섞기
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = randInt(i + 1);
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        
+        fixedNumbers = shuffled.slice(0, fixCount);
+        out.push(s); // 첫 번째 세트로 저장
+        break;
+      }
+    }
+
+    if (count === 1) return out;
+
+    // 2. 나머지 세트들은 '고정수'를 무조건 포함하고 남은 자리만 무작위로 채움
+    let attempts = 0; // 무한 루프 방지용 안전장치
+    while (out.length < count && attempts < 1000) {
+      attempts++;
+      
+      // 고정수로 뽑힌 번호들을 제외한 나머지 번호 풀(Pool) 생성
+      const pool = Array.from({ length: 45 }, (_, i) => i + 1).filter(n => !fixedNumbers.includes(n));
+      
+      // 남은 번호 풀 섞기
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = randInt(i + 1);
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      
+      // 고정수 + 나머지 무작위 번호 병합 후 정렬
+      const needed = 6 - fixedNumbers.length;
+      const additional = pool.slice(0, needed);
+      const s = [...fixedNumbers, ...additional].sort((a, b) => a - b);
+
+      // 3. 기존 필터(isOk)를 통과하는지, 그리고 이전 세트와 완전히 중복되지는 않는지 검사
+      if (isOk(s)) {
+        const isDuplicate = out.some(existing => existing.join(',') === s.join(','));
+        if (!isDuplicate) {
+          out.push(s);
+        }
+      }
+    }
+    
     return out;
   }
   function render() {
