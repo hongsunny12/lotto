@@ -51,6 +51,7 @@
     width: 44px; height: 44px; cursor: pointer;
   }
   .count button[aria-pressed="true"] { background: var(--btn); color: var(--btn-text); }
+  .count.mode button { width: auto; padding: 0 14px; }
   .primary {
     flex: 1; min-width: 140px; height: 48px; border: 0; border-radius: 12px;
     background: var(--btn); color: var(--btn-text); font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer;
@@ -118,10 +119,14 @@
   <p class="sub">많이 겹치는 패턴을 피해서 무작위로 뽑아요.</p>
 
   <div class="controls">
-    <div class="count" role="group" aria-label="세트 수">
+    <div class="count" id="count" role="group" aria-label="세트 수">
       <button type="button" data-n="1" aria-pressed="false">1</button>
       <button type="button" data-n="3" aria-pressed="false">3</button>
       <button type="button" data-n="5" aria-pressed="true">5</button>
+    </div>
+    <div class="count mode" id="mode" role="group" aria-label="뽑는 방식">
+      <button type="button" data-mode="spread" aria-pressed="true">분산</button>
+      <button type="button" data-mode="fixed" aria-pressed="false">고정</button>
     </div>
     <button class="primary" id="gen" type="button">번호 뽑기</button>
   </div>
@@ -137,13 +142,15 @@
   <button class="copy" id="copy" type="button" hidden>번호 복사</button>
 
   <div class="note">
-    <p>적용 규칙: 고정수 2개 공통 적용(다중 세트 시), 32~45 번호 2개 이상, 3연속 번호 없음, 끝자리 3종류 이상.</p>
-    <p>모든 조합의 1등 확률은 같아요(8,145,060분의 1). 이 규칙은 당첨 시 상금을 나눌 가능성을 줄이기 위한 것입니다.</p>
+    <p>공통 규칙: 32~45 번호 2개 이상, 3연속 번호 없음, 끝자리 3종류 이상. 1등 당첨 시 상금을 나눌 가능성을 줄이기 위한 규칙이에요.</p>
+    <p>분산: 세트끼리 번호가 하나도 겹치지 않아요. 고정: 모든 세트에 같은 번호 2개가 들어가요(테두리 표시).</p>
+    <p>모든 조합의 1등 확률은 같아요(8,145,060분의 1). 분산과 고정은 1등 확률과 기대 당첨금이 같고, 당첨이 나오는 방식만 달라요.</p>
   </div>
 </main>
 
 <script>
   let count = 5;
+  let mode = "spread"; // "spread"(분산) | "fixed"(고정)
   let current = [];
   let currentFixed = []; // 현재 회차 고정수 2개 저장
 
@@ -173,7 +180,42 @@
     if (n <= 10) return "y"; if (n <= 20) return "b"; if (n <= 30) return "r";
     if (n <= 40) return "g"; return "gr";
   }
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = randInt(i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // 분산: 45개를 섞어 6개씩 잘라 세트끼리 번호가 겹치지 않게 만듦.
+  // 어느 한 세트라도 규칙(isOk)을 어기면 전체를 다시 섞음.
+  function generateSpread() {
+    for (let attempt = 0; attempt < 200000; attempt++) {
+      const pool = shuffle(Array.from({ length: 45 }, (_, i) => i + 1));
+      const out = [];
+      for (let i = 0; i < count; i++) {
+        const s = pool.slice(i * 6, i * 6 + 6).sort((a, b) => a - b);
+        if (!isOk(s)) break;
+        out.push(s);
+      }
+      if (out.length === count) return out;
+    }
+    return [];
+  }
+
   function generate() {
+    currentFixed = [];
+    if (count === 1) {
+      let s;
+      do { s = sample(); } while (!isOk(s));
+      return [s];
+    }
+    return mode === "spread" ? generateSpread() : generateFixed();
+  }
+
+  // 고정: 첫 세트에서 2개를 골라 모든 세트에 공통으로 넣음
+  function generateFixed() {
     const out = [];
     let fixedNumbers = [];
 
@@ -259,10 +301,16 @@
     document.getElementById("copy").hidden = current.length === 0;
   }
 
-  document.querySelectorAll(".count button").forEach(btn => {
+  document.querySelectorAll("#count button").forEach(btn => {
     btn.addEventListener("click", () => {
       count = Number(btn.dataset.n);
-      document.querySelectorAll(".count button").forEach(b => b.setAttribute("aria-pressed", b === btn));
+      document.querySelectorAll("#count button").forEach(b => b.setAttribute("aria-pressed", b === btn));
+    });
+  });
+  document.querySelectorAll("#mode button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      mode = btn.dataset.mode;
+      document.querySelectorAll("#mode button").forEach(b => b.setAttribute("aria-pressed", b === btn));
     });
   });
   document.getElementById("gen").addEventListener("click", () => { current = generate(); render(); });
